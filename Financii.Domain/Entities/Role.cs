@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
-namespace Financii.Infra.Data.Context
+namespace Financii.Domain.Entities
 {
     public class Role : IdentityRole<long> { }
 }

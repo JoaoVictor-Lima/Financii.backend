@@ -16,6 +16,9 @@
   <Folder Name="/4-Infrastructure/4.2-Configurations/">
     <Project Path="Financii.Infra.Configurations/Financii.Infra.Configurations.csproj" />
   </Folder>
+  <Folder Name="/4-Infrastructure/4.3-Services/">
+    <Project Path="Financii.Infra.Services/Financii.Infra.Services.csproj" />
+  </Folder>
   <Folder Name="/Testes/">
     <Project Path="Financii.Tests/Financii.Tests.csproj" />
   </Folder>
