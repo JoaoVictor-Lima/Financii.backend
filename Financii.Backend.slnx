@@ -1,3 +1,22 @@
 <Solution>
-  <Project Path="Financii.Backend/Financii.Backend.csproj" />
+  <Folder Name="/0-Presentation/">
+    <Project Path="Financii.Api/Financii.Api.csproj" />
+  </Folder>
+  <Folder Name="/1-Application/">
+    <Project Path="Financii.Application/Financii.Application.csproj" />
+  </Folder>
+  <Folder Name="/2-Services/" />
+  <Folder Name="/3-Domain/">
+    <Project Path="Financii.Domain/Financii.Domain.csproj" />
+  </Folder>
+  <Folder Name="/4-Infrastructure/" />
+  <Folder Name="/4-Infrastructure/4.1-Data/">
+    <Project Path="Financii.Infra.Data/Financii.Infra.Data.csproj" />
+  </Folder>
+  <Folder Name="/4-Infrastructure/4.2-Configurations/">
+    <Project Path="Financii.Infra.Configurations/Financii.Infra.Configurations.csproj" />
+  </Folder>
+  <Folder Name="/Testes/">
+    <Project Path="Financii.Tests/Financii.Tests.csproj" />
+  </Folder>
 </Solution>
