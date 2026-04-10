@@ -28,46 +28,72 @@ Exibe ou consulta as decisões arquiteturais do projeto Financii. Use este skill
 
 ---
 
-## Estrutura de Camadas (Clean Architecture)
+## Estrutura de Projetos e Solution Folders
 
 ```
-Financii.Domain/                — núcleo, sem dependências externas
-Financii.Application/           — casos de uso, DTOs, validators, controllers
-Financii.Infra.Data/            — EF Core, repositórios, migrations
-Financii.Infra.Configurations/  — DI, configurações de infraestrutura
-Financii.Api/                   — entry point (Program.cs, appsettings)
-Financii.Tests/                 — testes unitários xUnit
+/0-Presentation/        → Financii.Api
+/1-Application/         → Financii.Application
+/2-Services/            → (reservado para Domain Services futuros)
+/3-Domain/              → Financii.Domain
+/4-Infrastructure/
+  4.1-Data/             → Financii.Infra.Data
+  4.2-Configurations/   → Financii.Infra.Configurations
+  4.3-Services/         → Financii.Infra.Services
+/Testes/                → Financii.Tests
 ```
 
-**Regra de dependência:** Domain não conhece ninguém. Application conhece Domain. Infra conhece Domain. Api conhece todos.
+### Responsabilidade de cada projeto
+
+| Projeto | Responsabilidade |
+|---|---|
+| `Financii.Domain` | Entidades, Value Objects, Domain Events, contratos base |
+| `Financii.Application` | AppServices, Controllers, DTOs, Validators, interfaces |
+| `Financii.Infra.Data` | DbContext, Repositories, Migrations |
+| `Financii.Infra.Configurations` | DI (Scrutor), setup de Identity e JWT no pipeline |
+| `Financii.Infra.Services` | Serviços de infraestrutura: JwtService, EmailService, etc. |
+| `Financii.Api` | Entry point — Program.cs, appsettings |
+| `Financii.Tests` | Testes unitários xUnit |
+
+**Regra de dependência:** Domain não conhece ninguém. Application conhece Domain. Infra conhece Application e Domain. Api conhece tudo via Configurations.
+
+### Grafo de referências
+
+```
+Domain ← Application ← Infra.Data ← Infra.Configurations → Api
+                    ↖ Infra.Services ↗
+```
 
 ---
 
 ## Domain (DDD)
 
 ### Entidades
-- Implementam `IEntity` (`long Id`)
-- Têm **comportamento** — métodos que executam operações e retornam `Result`
+
+Todas as entidades — inclusive as do Identity — vivem em `Financii.Domain/Entities/`.
+
+- Entidades de domínio próprio implementam `EntityBase` (que implementa `IAggregateRoot` e `IEntity`)
+- Entidades do Identity (`User`, `Role`) estendem `IdentityUser<long>` / `IdentityRole<long>` — ficam em `Financii.Domain/Entities/` porque são entidades do banco de dados, mesmo sendo gerenciadas pelo Identity
+- Campos com `private set` — domínio protege o próprio estado
 - Nunca são anêmicas (sem setters públicos para campos de negócio)
-- Protegem seu próprio estado
 
 ```csharp
-public class Transaction : IEntity
+// Entidade de domínio próprio
+public class Transaction : EntityBase
 {
-    public long Id { get; private set; }
-    public Money Amount { get; private set; }
-    public TransactionType Type { get; private set; }
+    public long UserId { get; private set; }
+    public decimal Amount { get; private set; }
 
-    public Result Categorize(long categoryId)
-    {
-        if (categoryId <= 0)
-            return Result.Fail("Categoria inválida.");
-        CategoryId = categoryId;
-        AddDomainEvent(new TransactionCategorizedEvent(Id, categoryId));
-        return Result.Ok();
-    }
+    public Result Categorize(long categoryId) { ... }
+}
+
+// Entidade Identity — também em Domain/Entities/
+public class User : IdentityUser<long>
+{
+    public string Name { get; set; } = string.Empty;
 }
 ```
+
+**Nota:** `Financii.Domain.csproj` usa `<FrameworkReference Include="Microsoft.AspNetCore.App" />` para acessar tipos do Identity sem instalar pacote NuGet separado.
 
 ### Value Objects
 - Imutáveis, sem Id, igualdade por valor
@@ -79,7 +105,7 @@ public record Money
     public decimal Value { get; }
     public Money(decimal value)
     {
-        if (value < 0) throw new DomainException("Valor não pode ser negativo.");
+        if (value < 0) throw new DomainException("Value cannot be negative.");
         Value = value;
     }
 }
@@ -94,6 +120,9 @@ public record Money
 - Entidade raiz que controla o ciclo de vida das filhas
 - Só se acessa filhas através do Aggregate Root
 - Um repositório por Aggregate Root
+
+### 2-Services — Domain Services
+A solution folder `2-Services` é reservada para **Domain Services** — lógica de negócio pura que não pertence a nenhuma entidade específica (ex: `TransferService`, `BudgetCalculationService`). Não confundir com `Infra.Services`.
 
 ---
 
@@ -124,7 +153,7 @@ public async Task<Result<TransactionResponse>> CreateAsync(CreateTransactionRequ
 
 ### Controllers
 - Herdam `BaseController`
-- Sempre `[Authorize]`
+- Sempre `[Authorize]` (exceto endpoints públicos como Login/Register que usam `[AllowAnonymous]`)
 - Sempre `ActionResult<ApiResponse<T>>`
 - Apenas mapeiam Result → ApiResponse, sem lógica
 
@@ -137,19 +166,36 @@ public async Task<Result<TransactionResponse>> CreateAsync(CreateTransactionRequ
 - **Leitura:** retorna projeção com campos necessários (`.Select()`)
 - **Escrita:** retorna entidade completa (para o domínio operar)
 - Métodos específicos por caso de uso no repositório concreto
+- Repositórios que usam Identity (`UserRepository`) não estendem `IRepositoryBase` — usam `UserManager<User>` diretamente
 
 ### Unit of Work
-- `IUnitOfWork` com `CommitAsync()` e `RollbackAsync()`
+- `IUnitOfWork` com `CommitAsync()`
 - Após commit, dispara Domain Events pendentes
+
+---
+
+## Infra.Services
+
+Serviços de **infraestrutura técnica** — sem lógica de negócio, sem acesso ao banco:
+
+| Serviço | Responsabilidade |
+|---|---|
+| `JwtService` | Gera e valida tokens JWT |
+| `EmailService` *(futuro)* | Envio de e-mails |
+| `StorageService` *(futuro)* | Upload de arquivos |
+
+Todos registrados via `AddScoped<IXyzService, XyzService>()` no `InfrastructureDI`.
 
 ---
 
 ## Infra.Configurations
 
-### DI (Scrutor)
-- Convenção: tudo que implementa `IAppService` → Scoped
-- Convenção: tudo que implementa `IRepository` → Scoped
-- Sem registro manual de classes individuais
+- Registra Identity (`AddIdentityCore<User>`)
+- Registra DbContext
+- Registra repositórios via Scrutor (`IRepositoryBase<>`)
+- Registra repositórios fora do padrão (ex: `IUserRepository`)
+- Registra serviços de infraestrutura (`IJwtService`)
+- Registra AppServices via Scrutor (`IAppService`)
 
 ---
 
@@ -169,11 +215,13 @@ public async Task<Result<TransactionResponse>> CreateAsync(CreateTransactionRequ
 
 ## Convenções de nomenclatura
 
+- **Idioma:** English only — todos os identificadores de código em inglês
 - Projetos: `Financii.<Camada>` (ex: `Financii.Domain`)
 - Namespaces seguem a estrutura de pastas
-- Entities: substantivo simples (`Transaction`, `Category`)
+- Entities: substantivo simples (`Transaction`, `Category`, `User`)
 - Value Objects: substantivo descritivo (`Money`, `DateRange`)
 - Domain Events: passado (`TransactionCreatedEvent`)
 - Commands/Requests: verbo + substantivo (`CreateTransactionRequest`)
 - Validators: Request + Validator (`CreateTransactionRequestValidator`)
 - Repositórios: entidade + Repository (`ITransactionRepository`)
+- Mensagens de erro em validators: English (`"Name is required."`)

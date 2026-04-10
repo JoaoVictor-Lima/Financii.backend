@@ -5,7 +5,7 @@ Gera um módulo completo seguindo todos os padrões do projeto Financii.
 ## Como invocar
 
 ```
-/new-module <NomeEntidade> [campos...]
+/new-module <EntityName> [fields...]
 ```
 
 **Exemplo:**
@@ -19,53 +19,55 @@ Gera um módulo completo seguindo todos os padrões do projeto Financii.
 
 Leia `/architecture` para garantir que os padrões estão frescos. Se tiver dúvida sobre onde cada arquivo vai, consulte lá.
 
+**Nomenclatura:** English only — todos os identificadores, nomes de arquivo, pastas e mensagens de validator em inglês.
+
 ---
 
 ## O que este skill cria (em ordem)
 
 ---
 
-## 1. Entidade — `Financii.Domain/Entities/<Nome>.cs`
+## 1. Entidade — `Financii.Domain/Entities/<Name>.cs`
 
 - Herda `EntityBase` (que implementa `IAggregateRoot` e `IEntity`)
 - Campos com `private set` — domínio protege o próprio estado
-- Construtor privado + factory method estático `Create()` que retorna `Result<<Nome>>`
+- Construtor privado + factory method estático `Create()` que retorna `Result<<Name>>`
 - Métodos de negócio retornam `Result`
 - Emite Domain Events nas operações importantes
 
 ```csharp
 using Financii.Domain.Contracts;
-using Financii.Domain.Events.<Nome>;
+using Financii.Domain.Events.<Name>;
 using FluentResults;
 
 namespace Financii.Domain.Entities
 {
-    public class <Nome> : EntityBase
+    public class <Name> : EntityBase
     {
-        // campos com private set
+        // fields with private set
         public long UserId { get; private set; }
 
-        private <Nome>() { } // EF Core
+        private <Name>() { } // EF Core
 
-        public static Result<<Nome>> Create(/* campos */, long userId)
+        public static Result<<Name>> Create(/* fields */, long userId)
         {
-            // validações de domínio
-            if (/* regra */)
-                return Result.Fail("Mensagem em português.");
+            // domain validations
+            if (/* rule */)
+                return Result.Fail("Error message.");
 
-            var entity = new <Nome>
+            var entity = new <Name>
             {
-                // atribuições
+                // assignments
                 UserId = userId
             };
 
-            entity.AddDomainEvent(new <Nome>CreatedEvent(entity.Id));
+            entity.AddDomainEvent(new <Name>CreatedEvent(entity.Id));
             return Result.Ok(entity);
         }
 
-        public Result Update(/* campos */)
+        public Result Update(/* fields */)
         {
-            // validação + mutação
+            // validate + mutate
             return Result.Ok();
         }
     }
@@ -74,14 +76,12 @@ namespace Financii.Domain.Entities
 
 ---
 
-## 2. Domain Event — `Financii.Domain/Events/<Nome>/<Nome>CreatedEvent.cs`
+## 2. Domain Event — `Financii.Domain/Events/<Name>/<Name>CreatedEvent.cs`
 
 ```csharp
-using Financii.Domain.Events;
-
-namespace Financii.Domain.Events.<Nome>
+namespace Financii.Domain.Events.<Name>
 {
-    public record <Nome>CreatedEvent(long <Nome>Id) : IDomainEvent;
+    public record <Name>CreatedEvent(long <Name>Id) : IDomainEvent;
 }
 ```
 
@@ -89,32 +89,32 @@ Crie um evento por operação relevante (`Created`, `Updated`, `Deleted`, opera�
 
 ---
 
-## 3. Interface do repositório — `Financii.Application/Interfaces/Repositories/I<Nome>Repository.cs`
+## 3. Interface do repositório — `Financii.Application/Interfaces/Repositories/I<Name>Repository.cs`
 
 ```csharp
-using Financii.Application.DataTransferObject.Responses.<Nome>;
+using Financii.Application.DataTransferObject.Responses.<Name>;
 using Financii.Domain.Entities;
 
 namespace Financii.Application.Interfaces.Repositories
 {
-    public interface I<Nome>Repository : IRepositoryBase<<Nome>>
+    public interface I<Name>Repository : IRepositoryBase<<Name>>
     {
-        // Leitura: projeção com campos necessários
-        Task<List<<Nome>Response>> GetAllAsync(long userId);
-        Task<<Nome>Response?> GetProjectedByIdAsync(long id, long userId);
+        // Read: projected with only needed fields
+        Task<List<<Name>Response>> GetAllAsync(long userId);
+        Task<<Name>Response?> GetProjectedByIdAsync(long id, long userId);
 
-        // Escrita: entidade completa para o domínio operar
-        Task<<Nome>?> GetByIdAsync(long id, long userId);
+        // Write: full entity for domain operations
+        Task<<Name>?> GetByIdAsync(long id, long userId);
     }
 }
 ```
 
 ---
 
-## 4. Implementação do repositório — `Financii.Infra.Data/Repositories/<Nome>Repository.cs`
+## 4. Implementação do repositório — `Financii.Infra.Data/Repositories/<Name>Repository.cs`
 
 ```csharp
-using Financii.Application.DataTransferObject.Responses.<Nome>;
+using Financii.Application.DataTransferObject.Responses.<Name>;
 using Financii.Application.Interfaces.Repositories;
 using Financii.Domain.Entities;
 using Financii.Infra.Data.Context;
@@ -122,36 +122,36 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Financii.Infra.Data.Repositories
 {
-    public class <Nome>Repository : RepositoryBase<<Nome>>, I<Nome>Repository
+    public class <Name>Repository : RepositoryBase<<Name>>, I<Name>Repository
     {
-        public <Nome>Repository(FinanciiDbContext context) : base(context) { }
+        public <Name>Repository(FinanciiDbContext context) : base(context) { }
 
-        // Leitura: Select com campos necessários — sem Include desnecessário
-        public async Task<List<<Nome>Response>> GetAllAsync(long userId)
+        // Read: Select with needed fields — no unnecessary Include
+        public async Task<List<<Name>Response>> GetAllAsync(long userId)
             => await Get()
                 .Where(x => x.UserId == userId)
                 .OrderByDescending(x => x.Id)
-                .Select(x => new <Nome>Response
+                .Select(x => new <Name>Response
                 {
                     Id = x.Id,
-                    // mapear campos
+                    // map fields
                     UserId = x.UserId
                 })
                 .ToListAsync();
 
-        public async Task<<Nome>Response?> GetProjectedByIdAsync(long id, long userId)
+        public async Task<<Name>Response?> GetProjectedByIdAsync(long id, long userId)
             => await Get()
                 .Where(x => x.Id == id && x.UserId == userId)
-                .Select(x => new <Nome>Response
+                .Select(x => new <Name>Response
                 {
                     Id = x.Id,
-                    // mapear campos
+                    // map fields
                     UserId = x.UserId
                 })
                 .FirstOrDefaultAsync();
 
-        // Escrita: entidade completa para o domínio modificar
-        public async Task<<Nome>?> GetByIdAsync(long id, long userId)
+        // Write: full entity for domain to modify
+        public async Task<<Name>?> GetByIdAsync(long id, long userId)
             => await Get()
                 .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
     }
@@ -162,27 +162,27 @@ namespace Financii.Infra.Data.Repositories
 
 ## 5. DTOs
 
-### Request — `Financii.Application/DataTransferObject/Requests/<Nome>/Create<Nome>Request.cs`
+### Request — `Financii.Application/DataTransferObject/Requests/<Name>/Create<Name>Request.cs`
 ```csharp
-namespace Financii.Application.DataTransferObject.Requests.<Nome>
+namespace Financii.Application.DataTransferObject.Requests.<Name>
 {
-    public class Create<Nome>Request
+    public class Create<Name>Request
     {
-        // campos editáveis, sem Id e UserId
+        // editable fields, no Id or UserId
     }
 }
 ```
 
 Crie um Request por operação (`Create`, `Update`, operações específicas).
 
-### Response — `Financii.Application/DataTransferObject/Responses/<Nome>/<Nome>Response.cs`
+### Response — `Financii.Application/DataTransferObject/Responses/<Name>/<Name>Response.cs`
 ```csharp
-namespace Financii.Application.DataTransferObject.Responses.<Nome>
+namespace Financii.Application.DataTransferObject.Responses.<Name>
 {
-    public class <Nome>Response
+    public class <Name>Response
     {
         public long Id { get; set; }
-        // campos para exibição
+        // display fields
         public long UserId { get; set; }
     }
 }
@@ -190,45 +190,45 @@ namespace Financii.Application.DataTransferObject.Responses.<Nome>
 
 ---
 
-## 6. Validators (FluentValidation) — `Financii.Application/Validators/<Nome>/Create<Nome>RequestValidator.cs`
+## 6. Validators (FluentValidation) — `Financii.Application/Validators/<Name>/Create<Name>RequestValidator.cs`
 
 ```csharp
-using Financii.Application.DataTransferObject.Requests.<Nome>;
+using Financii.Application.DataTransferObject.Requests.<Name>;
 using FluentValidation;
 
-namespace Financii.Application.Validators.<Nome>
+namespace Financii.Application.Validators.<Name>
 {
-    public class Create<Nome>RequestValidator : AbstractValidator<Create<Nome>Request>
+    public class Create<Name>RequestValidator : AbstractValidator<Create<Name>Request>
     {
-        public Create<Nome>RequestValidator()
+        public Create<Name>RequestValidator()
         {
-            // validações de input — formato, obrigatoriedade, limites
-            RuleFor(x => x./* campo */).NotEmpty().WithMessage("Campo obrigatório.");
+            // input validations — format, required, limits
+            RuleFor(x => x./* field */).NotEmpty().WithMessage("Field is required.");
         }
     }
 }
 ```
 
-Crie um validator por Request.
+Crie um validator por Request. Mensagens de erro em **inglês**.
 
 ---
 
-## 7. Interface do AppService — `Financii.Application/Interfaces/AppServices/I<Nome>AppService.cs`
+## 7. Interface do AppService — `Financii.Application/Interfaces/AppServices/I<Name>AppService.cs`
 
 ```csharp
-using Financii.Application.DataTransferObject.Requests.<Nome>;
-using Financii.Application.DataTransferObject.Responses.<Nome>;
+using Financii.Application.DataTransferObject.Requests.<Name>;
+using Financii.Application.DataTransferObject.Responses.<Name>;
 using Financii.Application.Interfaces.AppServices;
 using FluentResults;
 
 namespace Financii.Application.Interfaces.AppServices
 {
-    public interface I<Nome>AppService : IAppService
+    public interface I<Name>AppService : IAppService
     {
-        Task<Result<List<<Nome>Response>>> GetAllAsync(long userId);
-        Task<Result<<Nome>Response>> GetByIdAsync(long id, long userId);
-        Task<Result<<Nome>Response>> CreateAsync(Create<Nome>Request request, long userId);
-        Task<Result<<Nome>Response>> UpdateAsync(long id, Update<Nome>Request request, long userId);
+        Task<Result<List<<Name>Response>>> GetAllAsync(long userId);
+        Task<Result<<Name>Response>> GetByIdAsync(long id, long userId);
+        Task<Result<<Name>Response>> CreateAsync(Create<Name>Request request, long userId);
+        Task<Result<<Name>Response>> UpdateAsync(long id, Update<Name>Request request, long userId);
         Task<Result> DeleteAsync(long id, long userId);
     }
 }
@@ -236,42 +236,42 @@ namespace Financii.Application.Interfaces.AppServices
 
 ---
 
-## 8. AppService — `Financii.Application/AppServices/<Nome>/<Nome>AppService.cs`
+## 8. AppService — `Financii.Application/AppServices/<Name>/<Name>AppService.cs`
 
 ```csharp
-using Financii.Application.DataTransferObject.Requests.<Nome>;
-using Financii.Application.DataTransferObject.Responses.<Nome>;
+using Financii.Application.DataTransferObject.Requests.<Name>;
+using Financii.Application.DataTransferObject.Responses.<Name>;
 using Financii.Application.Interfaces.AppServices;
 using Financii.Application.Interfaces.Repositories;
 using Financii.Domain.Entities;
 using FluentResults;
 
-namespace Financii.Application.AppServices.<Nome>
+namespace Financii.Application.AppServices.<Name>
 {
-    public class <Nome>AppService : I<Nome>AppService
+    public class <Name>AppService : I<Name>AppService
     {
-        private readonly I<Nome>Repository _repository;
+        private readonly I<Name>Repository _repository;
         private readonly IUnitOfWork _uow;
 
-        public <Nome>AppService(I<Nome>Repository repository, IUnitOfWork uow)
+        public <Name>AppService(I<Name>Repository repository, IUnitOfWork uow)
         {
             _repository = repository;
             _uow = uow;
         }
 
-        public async Task<Result<List<<Nome>Response>>> GetAllAsync(long userId)
+        public async Task<Result<List<<Name>Response>>> GetAllAsync(long userId)
             => Result.Ok(await _repository.GetAllAsync(userId));
 
-        public async Task<Result<<Nome>Response>> GetByIdAsync(long id, long userId)
+        public async Task<Result<<Name>Response>> GetByIdAsync(long id, long userId)
         {
             var item = await _repository.GetProjectedByIdAsync(id, userId);
-            if (item is null) return Result.Fail("<Nome> não encontrado(a).");
+            if (item is null) return Result.Fail("<Name> not found.");
             return Result.Ok(item);
         }
 
-        public async Task<Result<<Nome>Response>> CreateAsync(Create<Nome>Request request, long userId)
+        public async Task<Result<<Name>Response>> CreateAsync(Create<Name>Request request, long userId)
         {
-            var result = <Nome>.Create(/* request campos */, userId);
+            var result = <Name>.Create(/* request fields */, userId);
             if (result.IsFailed) return result.ToResult();
 
             await _repository.AddAsync(result.Value);
@@ -280,12 +280,12 @@ namespace Financii.Application.AppServices.<Nome>
             return await GetByIdAsync(result.Value.Id, userId);
         }
 
-        public async Task<Result<<Nome>Response>> UpdateAsync(long id, Update<Nome>Request request, long userId)
+        public async Task<Result<<Name>Response>> UpdateAsync(long id, Update<Name>Request request, long userId)
         {
             var entity = await _repository.GetByIdAsync(id, userId);
-            if (entity is null) return Result.Fail("<Nome> não encontrado(a).");
+            if (entity is null) return Result.Fail("<Name> not found.");
 
-            var result = entity.Update(/* request campos */);
+            var result = entity.Update(/* request fields */);
             if (result.IsFailed) return result.ToResult();
 
             _repository.Update(entity);
@@ -297,7 +297,7 @@ namespace Financii.Application.AppServices.<Nome>
         public async Task<Result> DeleteAsync(long id, long userId)
         {
             var entity = await _repository.GetByIdAsync(id, userId);
-            if (entity is null) return Result.Fail("<Nome> não encontrado(a).");
+            if (entity is null) return Result.Fail("<Name> not found.");
 
             _repository.Delete(entity);
             await _uow.CommitAsync();
@@ -309,12 +309,12 @@ namespace Financii.Application.AppServices.<Nome>
 
 ---
 
-## 9. Controller — `Financii.Application/Controllers/<Nome>Controller.cs`
+## 9. Controller — `Financii.Application/Controllers/<Name>Controller.cs`
 
 ```csharp
-using Financii.Application.DataTransferObject.Requests.<Nome>;
+using Financii.Application.DataTransferObject.Requests.<Name>;
 using Financii.Application.DataTransferObject.Responses;
-using Financii.Application.DataTransferObject.Responses.<Nome>;
+using Financii.Application.DataTransferObject.Responses.<Name>;
 using Financii.Application.Interfaces.AppServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -322,29 +322,29 @@ using Microsoft.AspNetCore.Mvc;
 namespace Financii.Application.Controllers
 {
     [Authorize]
-    public class <Nome>Controller : BaseController
+    public class <Name>Controller : BaseController
     {
-        private readonly I<Nome>AppService _appService;
+        private readonly I<Name>AppService _appService;
 
-        public <Nome>Controller(I<Nome>AppService appService)
+        public <Name>Controller(I<Name>AppService appService)
         {
             _appService = appService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<List<<Nome>Response>>>> GetAll()
+        public async Task<ActionResult<ApiResponse<List<<Name>Response>>>> GetAll()
             => HandleResult(await _appService.GetAllAsync(GetUserId()));
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<ApiResponse<<Nome>Response>>> GetById(long id)
+        public async Task<ActionResult<ApiResponse<<Name>Response>>> GetById(long id)
             => HandleResult(await _appService.GetByIdAsync(id, GetUserId()));
 
         [HttpPost]
-        public async Task<ActionResult<ApiResponse<<Nome>Response>>> Create([FromBody] Create<Nome>Request request)
+        public async Task<ActionResult<ApiResponse<<Name>Response>>> Create([FromBody] Create<Name>Request request)
             => HandleResult(await _appService.CreateAsync(request, GetUserId()), successStatusCode: 201);
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<ApiResponse<<Nome>Response>>> Update(long id, [FromBody] Update<Nome>Request request)
+        public async Task<ActionResult<ApiResponse<<Name>Response>>> Update(long id, [FromBody] Update<Name>Request request)
             => HandleResult(await _appService.UpdateAsync(id, request, GetUserId()));
 
         [HttpDelete("{id}")]
@@ -361,12 +361,14 @@ namespace Financii.Application.Controllers
 Adicione em `Financii.Infra.Data/Context/FinanciiDbContext.cs`:
 
 ```csharp
-public DbSet<<Nome>> <Nome>s { get; set; }
+public DbSet<<Name>> <Name>s { get; set; }
 ```
+
+O `FinanciiDbContext` importa entidades de `Financii.Domain.Entities` — o using já deve estar presente.
 
 ---
 
-## 11. Testes — `Financii.Tests/Domain/<Nome>Tests.cs`
+## 11. Testes — `Financii.Tests/Domain/<Name>Tests.cs`
 
 ```csharp
 using Financii.Domain.Entities;
@@ -375,24 +377,24 @@ using Xunit;
 
 namespace Financii.Tests.Domain
 {
-    public class <Nome>Tests
+    public class <Name>Tests
     {
         [Fact]
         public void Create_WithValidData_ShouldSucceed()
         {
-            var result = <Nome>.Create(/* dados válidos */, userId: 1);
+            var result = <Name>.Create(/* valid data */, userId: 1);
             result.IsSuccess.Should().BeTrue();
         }
 
         [Fact]
         public void Create_WithInvalidData_ShouldFail()
         {
-            var result = <Nome>.Create(/* dados inválidos */, userId: 1);
+            var result = <Name>.Create(/* invalid data */, userId: 1);
             result.IsFailed.Should().BeTrue();
-            result.Errors.Should().ContainSingle(e => e.Message == "mensagem esperada");
+            result.Errors.Should().ContainSingle(e => e.Message == "expected error message");
         }
 
-        // teste por regra de negócio da entidade
+        // one test per business rule
     }
 }
 ```
@@ -401,5 +403,5 @@ namespace Financii.Tests.Domain
 
 ## 12. Após criar os arquivos
 
-Execute `/add-migration Add<Nome>` para criar e aplicar a migration.
-Execute `/review-module <Nome>` para validar que tudo está conforme os padrões.
+Execute `/add-migration Add<Name>` para criar e aplicar a migration.
+Execute `/review-module <Name>` para validar que tudo está conforme os padrões.

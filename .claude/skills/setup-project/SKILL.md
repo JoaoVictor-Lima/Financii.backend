@@ -26,6 +26,7 @@ dotnet new classlib -n Financii.Domain
 dotnet new classlib -n Financii.Application
 dotnet new classlib -n Financii.Infra.Data
 dotnet new classlib -n Financii.Infra.Configurations
+dotnet new classlib -n Financii.Infra.Services
 dotnet new webapi -n Financii.Api
 dotnet new xunit -n Financii.Tests
 
@@ -33,8 +34,39 @@ dotnet sln add Financii.Domain/Financii.Domain.csproj
 dotnet sln add Financii.Application/Financii.Application.csproj
 dotnet sln add Financii.Infra.Data/Financii.Infra.Data.csproj
 dotnet sln add Financii.Infra.Configurations/Financii.Infra.Configurations.csproj
+dotnet sln add Financii.Infra.Services/Financii.Infra.Services.csproj
 dotnet sln add Financii.Api/Financii.Api.csproj
 dotnet sln add Financii.Tests/Financii.Tests.csproj
+```
+
+Organize os projetos em solution folders no `.slnx`:
+
+```xml
+<Solution>
+  <Folder Name="/0-Presentation/">
+    <Project Path="Financii.Api/Financii.Api.csproj" />
+  </Folder>
+  <Folder Name="/1-Application/">
+    <Project Path="Financii.Application/Financii.Application.csproj" />
+  </Folder>
+  <Folder Name="/2-Services/" />
+  <Folder Name="/3-Domain/">
+    <Project Path="Financii.Domain/Financii.Domain.csproj" />
+  </Folder>
+  <Folder Name="/4-Infrastructure/" />
+  <Folder Name="/4-Infrastructure/4.1-Data/">
+    <Project Path="Financii.Infra.Data/Financii.Infra.Data.csproj" />
+  </Folder>
+  <Folder Name="/4-Infrastructure/4.2-Configurations/">
+    <Project Path="Financii.Infra.Configurations/Financii.Infra.Configurations.csproj" />
+  </Folder>
+  <Folder Name="/4-Infrastructure/4.3-Services/">
+    <Project Path="Financii.Infra.Services/Financii.Infra.Services.csproj" />
+  </Folder>
+  <Folder Name="/Testes/">
+    <Project Path="Financii.Tests/Financii.Tests.csproj" />
+  </Folder>
+</Solution>
 ```
 
 ---
@@ -45,12 +77,17 @@ dotnet sln add Financii.Tests/Financii.Tests.csproj
 # Application conhece Domain
 dotnet add Financii.Application/Financii.Application.csproj reference Financii.Domain/Financii.Domain.csproj
 
-# Infra.Data conhece Domain
+# Infra.Data conhece Domain e Application
 dotnet add Financii.Infra.Data/Financii.Infra.Data.csproj reference Financii.Domain/Financii.Domain.csproj
+dotnet add Financii.Infra.Data/Financii.Infra.Data.csproj reference Financii.Application/Financii.Application.csproj
 
-# Infra.Configurations conhece todos
+# Infra.Services conhece Application (para IJwtService, etc.)
+dotnet add Financii.Infra.Services/Financii.Infra.Services.csproj reference Financii.Application/Financii.Application.csproj
+
+# Infra.Configurations conhece tudo de infra
 dotnet add Financii.Infra.Configurations/Financii.Infra.Configurations.csproj reference Financii.Application/Financii.Application.csproj
 dotnet add Financii.Infra.Configurations/Financii.Infra.Configurations.csproj reference Financii.Infra.Data/Financii.Infra.Data.csproj
+dotnet add Financii.Infra.Configurations/Financii.Infra.Configurations.csproj reference Financii.Infra.Services/Financii.Infra.Services.csproj
 
 # Api conhece Configurations e Application
 dotnet add Financii.Api/Financii.Api.csproj reference Financii.Infra.Configurations/Financii.Infra.Configurations.csproj
@@ -66,10 +103,14 @@ dotnet add Financii.Tests/Financii.Tests.csproj reference Financii.Application/F
 ## Passo 3 — Instalar pacotes NuGet
 
 ```bash
+# Domain — FrameworkReference para acessar Identity sem pacote NuGet separado
+# (adicionar manualmente no .csproj — ver Passo 5)
+
 # Infra.Data
 dotnet add Financii.Infra.Data/Financii.Infra.Data.csproj package Microsoft.EntityFrameworkCore
 dotnet add Financii.Infra.Data/Financii.Infra.Data.csproj package Microsoft.EntityFrameworkCore.SqlServer
 dotnet add Financii.Infra.Data/Financii.Infra.Data.csproj package Microsoft.EntityFrameworkCore.Tools
+dotnet add Financii.Infra.Data/Financii.Infra.Data.csproj package Microsoft.AspNetCore.Identity.EntityFrameworkCore
 
 # Application
 dotnet add Financii.Application/Financii.Application.csproj package FluentValidation.AspNetCore
@@ -78,20 +119,27 @@ dotnet add Financii.Application/Financii.Application.csproj package FluentResult
 # Domain
 dotnet add Financii.Domain/Financii.Domain.csproj package FluentResults
 
-# Api
+# Infra.Services
+dotnet add Financii.Infra.Services/Financii.Infra.Services.csproj package Microsoft.AspNetCore.Authentication.JwtBearer
+
+# Api — usar Swashbuckle 6.x (compatível com AddSwaggerGen). NÃO instalar Microsoft.AspNetCore.OpenApi.
 dotnet add Financii.Api/Financii.Api.csproj package Microsoft.AspNetCore.Authentication.JwtBearer
 dotnet add Financii.Api/Financii.Api.csproj package Microsoft.AspNetCore.Identity.EntityFrameworkCore
-dotnet add Financii.Api/Financii.Api.csproj package Swashbuckle.AspNetCore
+dotnet add Financii.Api/Financii.Api.csproj package Swashbuckle.AspNetCore --version 6.9.0
+dotnet add Financii.Api/Financii.Api.csproj package FluentValidation.AspNetCore
 
 # Infra.Configurations
 dotnet add Financii.Infra.Configurations/Financii.Infra.Configurations.csproj package Scrutor
 dotnet add Financii.Infra.Configurations/Financii.Infra.Configurations.csproj package Microsoft.EntityFrameworkCore.Design
+dotnet add Financii.Infra.Configurations/Financii.Infra.Configurations.csproj package Microsoft.AspNetCore.Authentication.JwtBearer
 
 # Tests
 dotnet add Financii.Tests/Financii.Tests.csproj package Moq
 dotnet add Financii.Tests/Financii.Tests.csproj package FluentAssertions
 dotnet add Financii.Tests/Financii.Tests.csproj package FluentResults
 ```
+
+**Importante:** remover `Microsoft.AspNetCore.OpenApi` do `Financii.Api.csproj` se o template o tiver gerado — ele conflita com Swashbuckle 6.x.
 
 ---
 
@@ -102,7 +150,7 @@ Crie as pastas abaixo (sem arquivos ainda, apenas a estrutura):
 ```
 Financii.Domain/
   Contracts/
-  Entities/
+  Entities/          ← User, Role e todas as entidades de domínio ficam aqui
   Enums/
   Events/
   Exceptions/
@@ -127,6 +175,9 @@ Financii.Infra.Data/
 Financii.Infra.Configurations/
   DependencyInjection/
 
+Financii.Infra.Services/
+  (arquivos na raiz — ex: JwtService.cs, EmailService.cs)
+
 Financii.Tests/
   Domain/
   Application/
@@ -134,7 +185,28 @@ Financii.Tests/
 
 ---
 
-## Passo 5 — Arquivos base do Domain
+## Passo 5 — Configurar Financii.Domain.csproj
+
+Edite `Financii.Domain/Financii.Domain.csproj` para usar `FrameworkReference` (necessário para acessar `IdentityUser`/`IdentityRole` do shared framework):
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="FluentResults" Version="4.0.0" />
+  </ItemGroup>
+</Project>
+```
+
+---
+
+## Passo 6 — Arquivos base do Domain
 
 ### `Financii.Domain/Contracts/IEntity.cs`
 ```csharp
@@ -149,6 +221,8 @@ namespace Financii.Domain.Contracts
 
 ### `Financii.Domain/Contracts/IAggregateRoot.cs`
 ```csharp
+using Financii.Domain.Events;
+
 namespace Financii.Domain.Contracts
 {
     public interface IAggregateRoot : IEntity
@@ -200,9 +274,32 @@ namespace Financii.Domain.Contracts
 }
 ```
 
+### `Financii.Domain/Entities/User.cs`
+```csharp
+using Microsoft.AspNetCore.Identity;
+
+namespace Financii.Domain.Entities
+{
+    public class User : IdentityUser<long>
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+}
+```
+
+### `Financii.Domain/Entities/Role.cs`
+```csharp
+using Microsoft.AspNetCore.Identity;
+
+namespace Financii.Domain.Entities
+{
+    public class Role : IdentityRole<long> { }
+}
+```
+
 ---
 
-## Passo 6 — Arquivos base da Application
+## Passo 7 — Arquivos base da Application
 
 ### `Financii.Application/DataTransferObject/Responses/ApiResponse.cs`
 ```csharp
@@ -216,7 +313,7 @@ namespace Financii.Application.DataTransferObject.Responses
         public T Data { get; set; }
         public List<string> Errors { get; set; } = new();
 
-        public static ApiResponse<T> Success(T data, string message = "Operação realizada com sucesso.", int statusCode = 200)
+        public static ApiResponse<T> Success(T data, string message = "Operation completed successfully.", int statusCode = 200)
             => new() { IsSuccessful = true, StatusCode = statusCode, Message = message, Data = data };
 
         public static ApiResponse<T> Failure(string message, int statusCode = 400, List<string> errors = null)
@@ -241,7 +338,7 @@ namespace Financii.Application.Controllers
         {
             var claim = User.FindFirst("id")?.Value;
             if (!long.TryParse(claim, out var userId))
-                throw new Exception("Usuário inválido.");
+                throw new Exception("Invalid user.");
             return userId;
         }
 
@@ -251,7 +348,7 @@ namespace Financii.Application.Controllers
                 return Ok(ApiResponse<T>.Success(result.Value, statusCode: successStatusCode));
 
             var errors = result.Errors.Select(e => e.Message).ToList();
-            return BadRequest(ApiResponse<T>.Failure("Operação não permitida.", errors: errors));
+            return BadRequest(ApiResponse<T>.Failure("Operation not allowed.", errors: errors));
         }
 
         protected ActionResult<ApiResponse<object>> HandleResult(Result result)
@@ -260,7 +357,7 @@ namespace Financii.Application.Controllers
                 return Ok(ApiResponse<object>.Success(null));
 
             var errors = result.Errors.Select(e => e.Message).ToList();
-            return BadRequest(ApiResponse<object>.Failure("Operação não permitida.", errors: errors));
+            return BadRequest(ApiResponse<object>.Failure("Operation not allowed.", errors: errors));
         }
     }
 }
@@ -268,7 +365,7 @@ namespace Financii.Application.Controllers
 
 ---
 
-## Passo 7 — Interfaces base de repositório
+## Passo 8 — Interfaces base de repositório
 
 ### `Financii.Application/Interfaces/Repositories/IRepositoryBase.cs`
 ```csharp
@@ -297,9 +394,30 @@ namespace Financii.Application.Interfaces.Repositories
 }
 ```
 
+### `Financii.Application/Interfaces/AppServices/IAppService.cs`
+```csharp
+namespace Financii.Application.Interfaces.AppServices
+{
+    // Marker interface — every AppService implements this for automatic Scrutor registration
+    public interface IAppService { }
+}
+```
+
+### `Financii.Application/Interfaces/AppServices/IJwtService.cs`
+```csharp
+namespace Financii.Application.Interfaces.AppServices
+{
+    public interface IJwtService
+    {
+        string GenerateToken(long userId, string email, string name);
+        DateTime GetExpiration();
+    }
+}
+```
+
 ---
 
-## Passo 8 — RepositoryBase e UnitOfWork
+## Passo 9 — RepositoryBase e UnitOfWork
 
 ### `Financii.Infra.Data/Repositories/RepositoryBase.cs`
 ```csharp
@@ -352,7 +470,7 @@ namespace Financii.Infra.Data.Repositories
         public async Task CommitAsync()
         {
             await _context.SaveChangesAsync();
-            // TODO: disparar Domain Events após commit
+            // TODO: dispatch Domain Events after commit
         }
     }
 }
@@ -360,10 +478,11 @@ namespace Financii.Infra.Data.Repositories
 
 ---
 
-## Passo 9 — DbContext base
+## Passo 10 — DbContext base
 
 ### `Financii.Infra.Data/Context/FinanciiDbContext.cs`
 ```csharp
+using Financii.Domain.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -384,13 +503,72 @@ namespace Financii.Infra.Data.Context
 
 ---
 
-## Passo 10 — DI com Scrutor
+## Passo 11 — JwtService
+
+### `Financii.Infra.Services/JwtService.cs`
+```csharp
+using Financii.Application.Interfaces.AppServices;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+
+namespace Financii.Infra.Services
+{
+    public class JwtService : IJwtService
+    {
+        private readonly IConfiguration _configuration;
+        private const int ExpirationHours = 8;
+
+        public JwtService(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
+        public string GenerateToken(long userId, string email, string name)
+        {
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+
+            var claims = new[]
+            {
+                new Claim("id", userId.ToString()),
+                new Claim(ClaimTypes.Email, email),
+                new Claim(ClaimTypes.Name, name),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: GetExpiration(),
+                signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public DateTime GetExpiration() => DateTime.UtcNow.AddHours(ExpirationHours);
+    }
+}
+```
+
+---
+
+## Passo 12 — DI com Scrutor
 
 ### `Financii.Infra.Configurations/DependencyInjection/InfrastructureDI.cs`
 ```csharp
+using Financii.Application.Controllers;
+using Financii.Application.Interfaces.AppServices;
 using Financii.Application.Interfaces.Repositories;
+using Financii.Domain.Entities;
 using Financii.Infra.Data.Context;
 using Financii.Infra.Data.Repositories;
+using Financii.Infra.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -404,21 +582,38 @@ namespace Financii.Infra.Configurations.DependencyInjection
             services.AddDbContext<FinanciiDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
+            // Identity — does not override the default scheme (JWT is configured in Program.cs)
+            services.AddIdentityCore<User>(options =>
+            {
+                options.Password.RequiredLength = 8;
+                options.Password.RequireNonAlphanumeric = false;
+                options.User.RequireUniqueEmail = true;
+            })
+            .AddRoles<Role>()
+            .AddEntityFrameworkStores<FinanciiDbContext>()
+            .AddDefaultTokenProviders();
+
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // Repositórios — convenção: tudo que implementa IRepositoryBase
+            // Repositories — convention: everything implementing IRepositoryBase
             services.Scan(scan => scan
                 .FromAssemblyOf<UnitOfWork>()
                 .AddClasses(c => c.AssignableTo(typeof(IRepositoryBase<>)))
                 .AsImplementedInterfaces()
                 .WithScopedLifetime());
 
+            // Repositories outside IRepositoryBase pattern (e.g. Identity)
+            services.AddScoped<IUserRepository, UserRepository>();
+
+            // Infrastructure services
+            services.AddScoped<IJwtService, JwtService>();
+
             return services;
         }
 
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
-            // AppServices — convenção: tudo que implementa IAppService
+            // AppServices — convention: everything implementing IAppService
             services.Scan(scan => scan
                 .FromAssemblyOf<BaseController>()
                 .AddClasses(c => c.AssignableTo<IAppService>())
@@ -433,25 +628,11 @@ namespace Financii.Infra.Configurations.DependencyInjection
 
 ---
 
-## Passo 11 — Interfaces marcadoras para Scrutor
-
-### `Financii.Application/Interfaces/AppServices/IAppService.cs`
-```csharp
-namespace Financii.Application.Interfaces.AppServices
-{
-    // Interface marcadora — todo AppService implementa esta para registro automático via Scrutor
-    public interface IAppService { }
-}
-```
-
----
-
-## Passo 12 — Program.cs
-
-Configure o entry point com autenticação JWT, Swagger com suporte a Bearer token e FluentValidation:
+## Passo 13 — Program.cs
 
 ### `Financii.Api/Program.cs`
 ```csharp
+using Financii.Application.Controllers;
 using Financii.Infra.Configurations.DependencyInjection;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -462,12 +643,12 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers + FluentValidation automático
+// Controllers + FluentValidation
 builder.Services.AddControllers();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<BaseController>();
 
-// Swagger com suporte a JWT Bearer
+// Swagger with JWT Bearer support
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -480,7 +661,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Informe: Bearer {seu token}"
+        Description = "Enter: Bearer {your token}"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -522,7 +703,7 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// Infraestrutura e AppServices (Scrutor)
+// Infrastructure and AppServices (Scrutor)
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplicationServices();
 
@@ -532,7 +713,7 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Financii API v1");
-    c.RoutePrefix = string.Empty; // Swagger na raiz
+    c.RoutePrefix = string.Empty; // Swagger at root
 });
 
 app.UseAuthentication();
@@ -542,14 +723,21 @@ app.MapControllers();
 app.Run();
 ```
 
-### `Financii.Api/appsettings.json` — adicionar seção JWT
+### `Financii.Api/appsettings.json`
 ```json
 {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
   "ConnectionStrings": {
     "DefaultConnection": "Server=localhost;Database=FinanciiDb;Trusted_Connection=True;TrustServerCertificate=True;"
   },
   "Jwt": {
-    "Key": "sua-chave-secreta-minimo-32-caracteres-aqui",
+    "Key": "your-secret-key-minimum-32-characters-here",
     "Issuer": "Financii",
     "Audience": "Financii"
   }
@@ -558,7 +746,7 @@ app.Run();
 
 ---
 
-## Passo 13 — Verificação final
+## Passo 14 — Verificação final
 
 ```bash
 dotnet build
