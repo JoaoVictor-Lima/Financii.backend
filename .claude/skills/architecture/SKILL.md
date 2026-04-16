@@ -54,14 +54,34 @@ Exibe ou consulta as decisões arquiteturais do projeto Financii. Use este skill
 | `Financii.Api` | Entry point — Program.cs, appsettings |
 | `Financii.Tests` | Testes unitários xUnit |
 
-**Regra de dependência:** Domain não conhece ninguém. Application conhece Domain. Infra conhece Application e Domain. Api conhece tudo via Configurations.
+**Regra de dependência (arquitetura em camadas):**
+- Domain não conhece ninguém
+- Application conhece Domain e Infra.Data (Service enxerga Repository — válido em camadas)
+- Infra.Data conhece apenas Domain (interfaces de repositório vivem no próprio Infra.Data)
+- Infra.Services conhece Application (para implementar IJwtService, etc.)
+- Infra.Configurations conhece Application, Infra.Data e Infra.Services (orquestra o DI)
+- Api conhece Application e Configurations
 
 ### Grafo de referências
 
 ```
-Domain ← Application ← Infra.Data ← Infra.Configurations → Api
-                    ↖ Infra.Services ↗
+Domain ← Application ← Infra.Configurations → Api
+  ↑           ↑                ↑
+  └─ Infra.Data ──────────────┘
+       ↑
+  Infra.Services → Application
 ```
+
+Resumindo o fluxo de dependência por projeto:
+| Projeto | Referencia |
+|---|---|
+| `Financii.Domain` | — (ninguém) |
+| `Financii.Application` | Domain, Infra.Data |
+| `Financii.Infra.Data` | Domain |
+| `Financii.Infra.Services` | Application |
+| `Financii.Infra.Configurations` | Application, Infra.Data, Infra.Services |
+| `Financii.Api` | Application, Infra.Configurations |
+| `Financii.Tests` | Domain, Application |
 
 ---
 
@@ -76,20 +96,41 @@ Todas as entidades — inclusive as do Identity — vivem em `Financii.Domain/En
 - Campos com `private set` — domínio protege o próprio estado
 - Nunca são anêmicas (sem setters públicos para campos de negócio)
 
+#### Padrão de Id — `long Id` + `Guid PublicId`
+
+Toda entidade tem **dois identificadores**:
+- `long Id` — chave primária interna, usada em FKs e queries no banco
+- `Guid PublicId` — identificador externo, exposto nas respostas da API (nunca expor o `long` diretamente)
+
+`EntityBase` e `IEntity` já carregam ambos. `User` (Identity) os declara diretamente por não herdar `EntityBase`.
+
 ```csharp
-// Entidade de domínio próprio
+// Entidade de domínio próprio — herda EntityBase
 public class Transaction : EntityBase
 {
     public long UserId { get; private set; }
     public decimal Amount { get; private set; }
 
-    public Result Categorize(long categoryId) { ... }
+    private Transaction() { } // EF Core
+
+    public static Result<Transaction> Create(decimal amount, long userId)
+    {
+        var entity = new Transaction
+        {
+            PublicId = Guid.NewGuid(),
+            Amount = amount,
+            UserId = userId
+        };
+        return Result.Ok(entity);
+    }
 }
 
 // Entidade Identity — também em Domain/Entities/
-public class User : IdentityUser<long>
+public class User : IdentityUser<long>, IEntity
 {
     public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public Guid PublicId { get; set; }
 }
 ```
 
@@ -161,12 +202,32 @@ public async Task<Result<TransactionResponse>> CreateAsync(CreateTransactionRequ
 
 ## Infra.Data
 
+### Interfaces de repositório
+
+As interfaces de repositório (`IRepositoryBase`, `IUnitOfWork`, `IXxxRepository`) vivem em `Financii.Infra.Data/Interfaces/Repositories/`. Application referencia Infra.Data para usá-las — isso é válido na arquitetura em camadas (Service enxerga Repository).
+
 ### Repository
-- `RepositoryBase<T>` sem `SaveChangesAsync()` — quem salva é o UoW
-- **Leitura:** retorna projeção com campos necessários (`.Select()`)
-- **Escrita:** retorna entidade completa (para o domínio operar)
-- Métodos específicos por caso de uso no repositório concreto
-- Repositórios que usam Identity (`UserRepository`) não estendem `IRepositoryBase` — usam `UserManager<User>` diretamente
+
+**Regra absoluta: repositório só tem queries, creates, updates e deletes — nada mais.**
+
+- `RepositoryBase<T>` fornece `Get()`, `AddAsync()`, `Update()`, `Delete()` — sem `SaveChangesAsync()`
+- **Repositórios nunca retornam DTOs ou models da Application** — retornam apenas entidades do Domain
+- Projeções e mapeamentos para DTO são responsabilidade exclusiva do AppService
+- Métodos específicos por caso de uso no repositório concreto (ex: `GetByUserIdAsync`)
+- Repositórios que usam Identity (`UserRepository`) não estendem `IRepositoryBase` — usam `UserManager<User>` diretamente no AppService
+
+```csharp
+// ✅ Correto — repositório retorna entidade
+public async Task<Transaction?> GetByIdAsync(long id, long userId)
+    => await Get().FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+
+public async Task<List<Transaction>> GetAllAsync(long userId)
+    => await Get().Where(x => x.UserId == userId).ToListAsync();
+
+// ❌ Errado — repositório mapeando para DTO
+public async Task<List<TransactionResponse>> GetAllAsync(long userId)
+    => await Get().Select(x => new TransactionResponse { ... }).ToListAsync();
+```
 
 ### Unit of Work
 - `IUnitOfWork` com `CommitAsync()`

@@ -89,21 +89,18 @@ Crie um evento por operação relevante (`Created`, `Updated`, `Deleted`, opera�
 
 ---
 
-## 3. Interface do repositório — `Financii.Application/Interfaces/Repositories/I<Name>Repository.cs`
+## 3. Interface do repositório — `Financii.Infra.Data/Interfaces/Repositories/I<Name>Repository.cs`
+
+Repositório **nunca retorna DTOs ou models da Application** — apenas entidades do Domain. Projeção e mapping são responsabilidade do AppService.
 
 ```csharp
-using Financii.Application.DataTransferObject.Responses.<Name>;
 using Financii.Domain.Entities;
 
-namespace Financii.Application.Interfaces.Repositories
+namespace Financii.Infra.Data.Interfaces.Repositories
 {
     public interface I<Name>Repository : IRepositoryBase<<Name>>
     {
-        // Read: projected with only needed fields
-        Task<List<<Name>Response>> GetAllAsync(long userId);
-        Task<<Name>Response?> GetProjectedByIdAsync(long id, long userId);
-
-        // Write: full entity for domain operations
+        Task<List<<Name>>> GetAllAsync(long userId);
         Task<<Name>?> GetByIdAsync(long id, long userId);
     }
 }
@@ -113,11 +110,12 @@ namespace Financii.Application.Interfaces.Repositories
 
 ## 4. Implementação do repositório — `Financii.Infra.Data/Repositories/<Name>Repository.cs`
 
+Repositório só tem queries, creates, updates e deletes. Nunca retorna DTOs — só entidades. Mapping acontece no AppService.
+
 ```csharp
-using Financii.Application.DataTransferObject.Responses.<Name>;
-using Financii.Application.Interfaces.Repositories;
 using Financii.Domain.Entities;
 using Financii.Infra.Data.Context;
+using Financii.Infra.Data.Interfaces.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace Financii.Infra.Data.Repositories
@@ -126,31 +124,12 @@ namespace Financii.Infra.Data.Repositories
     {
         public <Name>Repository(FinanciiDbContext context) : base(context) { }
 
-        // Read: Select with needed fields — no unnecessary Include
-        public async Task<List<<Name>Response>> GetAllAsync(long userId)
+        public async Task<List<<Name>>> GetAllAsync(long userId)
             => await Get()
                 .Where(x => x.UserId == userId)
                 .OrderByDescending(x => x.Id)
-                .Select(x => new <Name>Response
-                {
-                    Id = x.Id,
-                    // map fields
-                    UserId = x.UserId
-                })
                 .ToListAsync();
 
-        public async Task<<Name>Response?> GetProjectedByIdAsync(long id, long userId)
-            => await Get()
-                .Where(x => x.Id == id && x.UserId == userId)
-                .Select(x => new <Name>Response
-                {
-                    Id = x.Id,
-                    // map fields
-                    UserId = x.UserId
-                })
-                .FirstOrDefaultAsync();
-
-        // Write: full entity for domain to modify
         public async Task<<Name>?> GetByIdAsync(long id, long userId)
             => await Get()
                 .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
@@ -238,12 +217,14 @@ namespace Financii.Application.Interfaces.AppServices
 
 ## 8. AppService — `Financii.Application/AppServices/<Name>/<Name>AppService.cs`
 
+O AppService é responsável por buscar a entidade do repositório e fazer o mapping para DTO. Repositório nunca mapeia.
+
 ```csharp
 using Financii.Application.DataTransferObject.Requests.<Name>;
 using Financii.Application.DataTransferObject.Responses.<Name>;
 using Financii.Application.Interfaces.AppServices;
-using Financii.Application.Interfaces.Repositories;
 using Financii.Domain.Entities;
+using Financii.Infra.Data.Interfaces.Repositories;
 using FluentResults;
 
 namespace Financii.Application.AppServices.<Name>
@@ -260,13 +241,16 @@ namespace Financii.Application.AppServices.<Name>
         }
 
         public async Task<Result<List<<Name>Response>>> GetAllAsync(long userId)
-            => Result.Ok(await _repository.GetAllAsync(userId));
+        {
+            var entities = await _repository.GetAllAsync(userId);
+            return Result.Ok(entities.Select(MapToResponse).ToList());
+        }
 
         public async Task<Result<<Name>Response>> GetByIdAsync(long id, long userId)
         {
-            var item = await _repository.GetProjectedByIdAsync(id, userId);
-            if (item is null) return Result.Fail("<Name> not found.");
-            return Result.Ok(item);
+            var entity = await _repository.GetByIdAsync(id, userId);
+            if (entity is null) return Result.Fail("<Name> not found.");
+            return Result.Ok(MapToResponse(entity));
         }
 
         public async Task<Result<<Name>Response>> CreateAsync(Create<Name>Request request, long userId)
@@ -303,6 +287,13 @@ namespace Financii.Application.AppServices.<Name>
             await _uow.CommitAsync();
             return Result.Ok();
         }
+
+        private static <Name>Response MapToResponse(<Name> entity) => new()
+        {
+            Id = entity.Id,
+            // map fields
+            UserId = entity.UserId
+        };
     }
 }
 ```

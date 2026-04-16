@@ -73,15 +73,20 @@ Organize os projetos em solution folders no `.slnx`:
 
 ## Passo 2 — Referências entre projetos
 
+Arquitetura em camadas: cada camada enxerga a camada de dentro. Application (Service) enxerga Infra.Data (Repository) — isso é válido e intencional.
+
 ```bash
-# Application conhece Domain
+# Domain não referencia ninguém
+
+# Application conhece Domain e Infra.Data (Service enxerga Repository)
 dotnet add Financii.Application/Financii.Application.csproj reference Financii.Domain/Financii.Domain.csproj
+dotnet add Financii.Application/Financii.Application.csproj reference Financii.Infra.Data/Financii.Infra.Data.csproj
 
-# Infra.Data conhece Domain e Application
+# Infra.Data conhece apenas Domain
+# (interfaces de repositório vivem aqui — Application referencia Infra.Data para usá-las)
 dotnet add Financii.Infra.Data/Financii.Infra.Data.csproj reference Financii.Domain/Financii.Domain.csproj
-dotnet add Financii.Infra.Data/Financii.Infra.Data.csproj reference Financii.Application/Financii.Application.csproj
 
-# Infra.Services conhece Application (para IJwtService, etc.)
+# Infra.Services conhece Application (para implementar IJwtService, etc.)
 dotnet add Financii.Infra.Services/Financii.Infra.Services.csproj reference Financii.Application/Financii.Application.csproj
 
 # Infra.Configurations conhece tudo de infra
@@ -169,6 +174,8 @@ Financii.Application/
 
 Financii.Infra.Data/
   Context/
+  Interfaces/
+    Repositories/
   Migrations/
   Repositories/
 
@@ -215,6 +222,7 @@ namespace Financii.Domain.Contracts
     public interface IEntity
     {
         long Id { get; }
+        Guid PublicId { get; }
     }
 }
 ```
@@ -262,6 +270,8 @@ namespace Financii.Domain.Contracts
     {
         public long Id { get; protected set; }
 
+        public Guid PublicId { get; protected set; }
+
         private readonly List<IDomainEvent> _domainEvents = new();
         public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
@@ -276,13 +286,27 @@ namespace Financii.Domain.Contracts
 
 ### `Financii.Domain/Entities/User.cs`
 ```csharp
+using Financii.Domain.Contracts;
 using Microsoft.AspNetCore.Identity;
 
 namespace Financii.Domain.Entities
 {
-    public class User : IdentityUser<long>
+    public class User : IdentityUser<long>, IEntity
     {
+        public User() { }
+
+        public User(string name, string email)
+        {
+            PublicId = Guid.NewGuid();
+            Name = name;
+            Email = email;
+            UserName = email;
+            CreatedAt = DateTime.UtcNow;
+        }
+
         public string Name { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public Guid PublicId { get; set; }
     }
 }
 ```
@@ -367,11 +391,13 @@ namespace Financii.Application.Controllers
 
 ## Passo 8 — Interfaces base de repositório
 
-### `Financii.Application/Interfaces/Repositories/IRepositoryBase.cs`
+As interfaces de repositório vivem em `Financii.Infra.Data/Interfaces/Repositories/`. Application referencia Infra.Data para usá-las — válido na arquitetura em camadas.
+
+### `Financii.Infra.Data/Interfaces/Repositories/IRepositoryBase.cs`
 ```csharp
 using Financii.Domain.Contracts;
 
-namespace Financii.Application.Interfaces.Repositories
+namespace Financii.Infra.Data.Interfaces.Repositories
 {
     public interface IRepositoryBase<TEntity> where TEntity : class, IEntity
     {
@@ -383,9 +409,9 @@ namespace Financii.Application.Interfaces.Repositories
 }
 ```
 
-### `Financii.Application/Interfaces/Repositories/IUnitOfWork.cs`
+### `Financii.Infra.Data/Interfaces/Repositories/IUnitOfWork.cs`
 ```csharp
-namespace Financii.Application.Interfaces.Repositories
+namespace Financii.Infra.Data.Interfaces.Repositories
 {
     public interface IUnitOfWork
     {
@@ -421,9 +447,9 @@ namespace Financii.Application.Interfaces.AppServices
 
 ### `Financii.Infra.Data/Repositories/RepositoryBase.cs`
 ```csharp
-using Financii.Application.Interfaces.Repositories;
 using Financii.Domain.Contracts;
 using Financii.Infra.Data.Context;
+using Financii.Infra.Data.Interfaces.Repositories;
 
 namespace Financii.Infra.Data.Repositories
 {
@@ -453,8 +479,8 @@ namespace Financii.Infra.Data.Repositories
 
 ### `Financii.Infra.Data/Repositories/UnitOfWork.cs`
 ```csharp
-using Financii.Application.Interfaces.Repositories;
 using Financii.Infra.Data.Context;
+using Financii.Infra.Data.Interfaces.Repositories;
 
 namespace Financii.Infra.Data.Repositories
 {
