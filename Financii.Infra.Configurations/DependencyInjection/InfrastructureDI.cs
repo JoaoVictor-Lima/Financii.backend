@@ -1,8 +1,8 @@
 using Financii.Application.Controllers;
 using Financii.Application.Interfaces.AppServices;
-using Financii.Application.Interfaces.Repositories;
 using Financii.Domain.Entities;
 using Financii.Infra.Data.Context;
+using Financii.Infra.Data.Interfaces.Repositories;
 using Financii.Infra.Data.Repositories;
 using Financii.Infra.Services;
 using Microsoft.AspNetCore.Identity;

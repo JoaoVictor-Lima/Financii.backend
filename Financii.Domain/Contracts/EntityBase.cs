@@ -9,6 +9,8 @@ namespace Financii.Domain.Contracts
         private readonly List<IDomainEvent> _domainEvents = new();
         public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
+        public Guid PublicId { get; protected set; }
+
         protected void AddDomainEvent(IDomainEvent domainEvent)
             => _domainEvents.Add(domainEvent);
 

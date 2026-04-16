@@ -1,6 +1,6 @@
 using Financii.Domain.Contracts;
 
-namespace Financii.Application.Interfaces.Repositories
+namespace Financii.Infra.Data.Interfaces.Repositories
 {
     public interface IRepositoryBase<TEntity> where TEntity : class, IEntity
     {

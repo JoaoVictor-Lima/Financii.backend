@@ -1,4 +1,4 @@
-namespace Financii.Application.Interfaces.Repositories
+namespace Financii.Infra.Data.Interfaces.Repositories
 {
     public interface IUnitOfWork
     {

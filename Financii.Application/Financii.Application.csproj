@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Financii.Domain\Financii.Domain.csproj" />
+    <ProjectReference Include="..\Financii.Infra.Data\Financii.Infra.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>
