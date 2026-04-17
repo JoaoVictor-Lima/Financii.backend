@@ -4,6 +4,7 @@ using Financii.Infra.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Financii.Infra.Data.Migrations
 {
     [DbContext(typeof(FinanciiDbContext))]
-    partial class FinanciiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260416231201_AddDomainEntities")]
+    partial class AddDomainEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -318,35 +321,20 @@ namespace Financii.Infra.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("DebtAmountUnknown")
-                        .HasColumnType("bit");
-
                     b.Property<int>("DetectedProfile")
                         .HasColumnType("int");
 
-                    b.Property<decimal?>("EmergencyFundAmount")
+                    b.Property<decimal>("EscudoPercentage")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("EscudoPercentage")
-                        .HasColumnType("int");
 
                     b.Property<bool>("HasDebt")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("HasEmergencyFund")
+                    b.Property<bool>("HasEmergencyReserve")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("HasRecurringIncome")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("IncomeType")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("MonthlyIncome")
+                    b.Property<decimal>("MonthlyIncome")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -355,13 +343,6 @@ namespace Financii.Infra.Data.Migrations
 
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal?>("TotalDebtAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
