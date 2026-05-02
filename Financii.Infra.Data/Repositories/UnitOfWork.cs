@@ -15,7 +15,22 @@ namespace Financii.Infra.Data.Repositories
         public async Task CommitAsync()
         {
             await _context.SaveChangesAsync();
-            // TODO: disparar Domain Events após commit
+            // TODO: dispatch Domain Events after commit
+        }
+
+        public async Task ExecuteInTransactionAsync(Func<Task> operation)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                await operation();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
     }
 }

@@ -21,7 +21,12 @@ builder.Services.AddCors(options =>
 });
 
 // Controllers + FluentValidation automático
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Accept enums as strings in request/response bodies (e.g. "Fixed", "Variable", "None")
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<BaseController>();
 
