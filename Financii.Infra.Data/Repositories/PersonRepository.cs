@@ -11,5 +11,11 @@ namespace Financii.Infra.Data.Repositories
 
         public async Task<Person?> GetByUserIdAsync(long userId)
             => await Get().FirstOrDefaultAsync(p => p.UserId == userId);
+
+        public async Task<Person?> GetByPublicIdAsync(Guid publicId)
+            => await Get().FirstOrDefaultAsync(p => p.PublicId == publicId);
+
+        public async Task<List<Person>> GetByIdsAsync(IEnumerable<long> ids)
+            => await Get().Where(p => ids.Contains(p.Id)).ToListAsync();
     }
 }

@@ -1,5 +1,4 @@
 using Financii.Domain.Contracts;
-using Financii.Domain.Enums;
 
 namespace Financii.Domain.Entities
 {
@@ -7,30 +6,25 @@ namespace Financii.Domain.Entities
     {
         protected BudgetItem() { }
 
-        public BudgetItem(
-            long budgetPlanId,
-            string description,
-            decimal plannedAmount,
-            long categoryId,
-            ItemType type,
-            bool isRecurring)
+        public BudgetItem(long budgetPlanId, string description, decimal plannedAmount, long categoryId)
         {
             PublicId = Guid.NewGuid();
             BudgetPlanId = budgetPlanId;
             Description = description;
             PlannedAmount = plannedAmount;
             CategoryId = categoryId;
-            Type = type;
-            IsRecurring = isRecurring;
-            IsPaid = false;
         }
 
         public long BudgetPlanId { get; private set; }
         public string Description { get; private set; } = string.Empty;
         public decimal PlannedAmount { get; private set; }
         public long CategoryId { get; private set; }
-        public ItemType Type { get; private set; }
-        public bool IsRecurring { get; private set; }
-        public bool IsPaid { get; private set; }
+
+        public void Update(string description, decimal plannedAmount, long categoryId)
+        {
+            Description = description;
+            PlannedAmount = plannedAmount;
+            CategoryId = categoryId;
+        }
     }
 }

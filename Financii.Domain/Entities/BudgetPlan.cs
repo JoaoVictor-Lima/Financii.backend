@@ -6,25 +6,23 @@ namespace Financii.Domain.Entities
     {
         protected BudgetPlan() { }
 
-        public BudgetPlan(
-            long financialGroupId,
-            int month,
-            int year,
-            decimal totalPlannedIncome,
-            decimal totalPlannedExpenses)
+        public BudgetPlan(long financialGroupId, int month, int year)
         {
             PublicId = Guid.NewGuid();
             FinancialGroupId = financialGroupId;
             Month = month;
             Year = year;
-            TotalPlannedIncome = totalPlannedIncome;
-            TotalPlannedExpenses = totalPlannedExpenses;
+            TotalPlanned = 0;
+            CreatedAt = DateTime.UtcNow;
         }
 
         public long FinancialGroupId { get; private set; }
         public int Month { get; private set; }
         public int Year { get; private set; }
-        public decimal TotalPlannedIncome { get; private set; }
-        public decimal TotalPlannedExpenses { get; private set; }
+        public decimal TotalPlanned { get; private set; }
+        public DateTime CreatedAt { get; private set; }
+
+        public void RecalculateTotalPlanned(IEnumerable<BudgetItem> items)
+            => TotalPlanned = items.Sum(i => i.PlannedAmount);
     }
 }
